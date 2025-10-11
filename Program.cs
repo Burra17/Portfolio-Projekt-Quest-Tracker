@@ -38,6 +38,21 @@
 
                     switch (heroChoice) // Switch sats på samma sätt som tar emot det användaren väljer
                     {
+                        case "1":
+                            QuestManager.AddQuest();
+                            break;
+                        case "2":
+                            QuestManager.ShowAllQuests();
+                            break;
+                        case "3":
+                            QuestManager.ManageQuest();
+                            break;
+                        //case "4":
+                        //Request Guild advisor help (ai)
+                        //break
+                        //case "5":
+                        //Show guild report
+
                         case "6":
                             loggedInUser = null; // Logga ut användare, går tillbaka till huvudmenyn
                             Console.WriteLine("You have logged out.\n");
