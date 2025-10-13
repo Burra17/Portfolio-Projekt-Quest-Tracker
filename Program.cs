@@ -17,10 +17,10 @@
                     switch (choice) // switch sats baserat på användarens val
                     {
                         case "1":
-                            User.RegisterHero();
+                            Authenticator.RegisterHero();
                             break;
                         case "2":
-                            loggedInUser = User.LoginHero();
+                            loggedInUser = Authenticator.LoginHero();
                             break;
                         case "3":
                             running = false;
