@@ -3,24 +3,7 @@ namespace Portfolio_Projekt_Quest_Tracker
 {
     public class QuestManager
     {
-        // Attribut
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public DateTime DueDate { get; set; }
-        public string Priority { get; set; }
-        public bool IsCompleted { get; set; }
-
-        // Konstruktor
-        public QuestManager(string title, string description, DateTime dueDate, string priority)
-        {
-            Title = title;
-            Description = description;
-            DueDate = dueDate;
-            Priority = priority;
-            IsCompleted = false;
-        }
-
-        private static List<QuestManager> quests = new List<QuestManager>(); // lista för alla hjältar
+        private static List<Quest> quests = new List<Quest>(); // lista för alla hjältar
 
 
         // --- Skapa nytt uppdrag ---
@@ -73,7 +56,7 @@ namespace Portfolio_Projekt_Quest_Tracker
 
             // === Lägg till uppdraget ===
             // Skapar ett nytt Quest-objekt och lägger till det i listan "quests"
-            quests.Add(new QuestManager(title, description, dueDate, priority));
+            quests.Add(new Quest(title, description, dueDate, priority));
 
             // === Bekräftelse ===
             Console.WriteLine($"\nQuest '{title}' added successfully!");
@@ -122,7 +105,7 @@ namespace Portfolio_Projekt_Quest_Tracker
             string title = Console.ReadLine();
 
             // Försök hitta questen i listan (case-insensitive)
-            QuestManager quest = quests.FirstOrDefault(q => q.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+            Quest quest = quests.FirstOrDefault(q => q.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
 
             // === Om inget uppdrag hittas ===
             if (quest == null)

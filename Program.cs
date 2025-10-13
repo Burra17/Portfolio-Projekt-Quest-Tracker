@@ -2,7 +2,7 @@
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             bool running = true; // För att enkelt kunna avsluta while-loopen
             User loggedInUser = null; // För att hålla koll när användare är inloggad
