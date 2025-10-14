@@ -4,6 +4,26 @@
     {
         static async Task Main(string[] args)
         {
+            // Initiera NotificationService
+            var notifier = new NotificationService();
+            Console.WriteLine(Environment.GetEnvironmentVariable("TWILIO_ACCOUNT_SID"));
+            Console.WriteLine(Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN"));
+            Console.WriteLine(Environment.GetEnvironmentVariable("TWILIO_FROM_NUMBER"));
+
+            // Ange mottagarens nummer
+            string to = "+46725209738"; // ditt verifierade nummer i E.164-format (ex: +46701234567)
+            string message = "Hej! 🚀 Detta SMS skickades via NotificationService i C#.";
+
+            Console.WriteLine("Försöker skicka SMS...");
+
+            // Skicka SMS
+            string sid = await notifier.SendSmsAsync(to, message);
+
+            if (!string.IsNullOrEmpty(sid))
+                Console.WriteLine($"✅ SMS skickat! Twilio SID: {sid}");
+            else
+                Console.WriteLine("❌ Något gick fel vid SMS-utskick.");
+
             bool running = true; // För att enkelt kunna avsluta while-loopen
             User loggedInUser = null; // För att hålla koll när användare är inloggad
 

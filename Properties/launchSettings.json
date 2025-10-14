@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Portfolio-Projekt-Quest-Tracker": {
+      "commandName": "Project",
+      "environmentVariables": {
+      }
+    }
+  }
+}
