@@ -1,9 +1,13 @@
-﻿
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
 namespace Portfolio_Projekt_Quest_Tracker
 {
     public class QuestManager
     {
-        private static List<Quest> quests = new List<Quest>(); // lista för alla hjältar
+        public static List<Quest> quests = new List<Quest>(); // lista för alla quests
 
 
         // --- Skapa nytt uppdrag ---
@@ -13,7 +17,6 @@ namespace Portfolio_Projekt_Quest_Tracker
             Console.Write("Enter quest title: ");
             string title = Console.ReadLine();
 
-            // Kolla att användaren inte lämnat titeln tom
             while (string.IsNullOrWhiteSpace(title))
             {
                 Console.Write("Title cannot be empty. Please enter a title: ");
@@ -21,20 +24,24 @@ namespace Portfolio_Projekt_Quest_Tracker
             }
 
             // === Beskrivning ===
-            Console.Write("Enter description: ");
-            string description = Console.ReadLine();
+            Console.WriteLine("Enter quest description (press enter and type 'END' when done):");
 
-            // Om användaren lämnar fältet tomt kan vi sätta en standardbeskrivning
-            if (string.IsNullOrWhiteSpace(description))
+            // Bygger upp texten rad för rad
+            StringBuilder descriptionBuilder = new StringBuilder();
+            string line;
+            while ((line = Console.ReadLine()) != null && line.ToUpper() != "END")
             {
-                description = "No description provided.";
+                descriptionBuilder.AppendLine(line);
             }
+
+            string description = descriptionBuilder.ToString().Trim();
+
+            if (string.IsNullOrWhiteSpace(description))
+                description = "No description provided.";
 
             // === Slutdatum ===
             Console.Write("Enter due date (YYYY-MM-DD): ");
             DateTime dueDate;
-
-            // Validerar att användaren anger ett giltigt datum
             while (!DateTime.TryParse(Console.ReadLine(), out dueDate))
             {
                 Console.Write("Invalid date format. Try again (YYYY-MM-DD): ");
@@ -43,8 +50,6 @@ namespace Portfolio_Projekt_Quest_Tracker
             // === Prioritet ===
             Console.Write("Enter priority (High / Medium / Low): ");
             string priority = Console.ReadLine();
-
-            // Säkerställer att användaren anger en giltig prioritet
             while (string.IsNullOrWhiteSpace(priority) ||
                   !(priority.Equals("High", StringComparison.OrdinalIgnoreCase) ||
                     priority.Equals("Medium", StringComparison.OrdinalIgnoreCase) ||
@@ -54,44 +59,36 @@ namespace Portfolio_Projekt_Quest_Tracker
                 priority = Console.ReadLine();
             }
 
-            // === Lägg till uppdraget ===
-            // Skapar ett nytt Quest-objekt och lägger till det i listan "quests"
+            // === Lägg till quest ===
             quests.Add(new Quest(title, description, dueDate, priority));
 
-            // === Bekräftelse ===
-            Console.WriteLine($"\nQuest '{title}' added successfully!");
-            Console.WriteLine($"Description: {description}");
+            Console.WriteLine($"\n✅ Quest '{title}' added successfully!");
             Console.WriteLine($"Due Date: {dueDate:yyyy-MM-dd}");
             Console.WriteLine($"Priority: {priority}\n");
         }
 
+
+
         // --- Visa alla quests ---
         public static void ShowAllQuests()
         {
-            // === Kolla om det finns några uppdrag ===
             if (quests.Count == 0)
             {
-                // Om listan är tom, visa ett meddelande och avsluta metoden
                 Console.WriteLine("No quests available.\n");
                 return;
             }
 
-            // === Rubrik ===
             Console.WriteLine("=== ALL QUESTS ===");
-
-            // === Loopa igenom alla quests i listan ===
             foreach (var quest in quests)
             {
-                // Skriver ut information om varje quest
                 Console.WriteLine($"Title: {quest.Title}");
-                Console.WriteLine($"Description: {quest.Description}");
+                Console.WriteLine($"Description:\n{quest.Description}");
                 Console.WriteLine($"Due Date: {quest.DueDate:yyyy-MM-dd}");
                 Console.WriteLine($"Priority: {quest.Priority}");
                 Console.WriteLine($"Completed: {(quest.IsCompleted ? "Yes" : "No")}");
                 Console.WriteLine("-------------------------");
             }
 
-            // === Summering ===
             Console.WriteLine($"Total quests: {quests.Count}\n");
         }
 
@@ -100,35 +97,40 @@ namespace Portfolio_Projekt_Quest_Tracker
         // --- Uppdatera eller markera ett uppdrag som slutfört ---
         public static void ManageQuest()
         {
-            // === Be användaren ange vilken quest som ska hanteras ===
             Console.Write("Enter the title of the quest to update or complete: ");
             string title = Console.ReadLine();
 
-            // Försök hitta questen i listan (case-insensitive)
             Quest quest = quests.FirstOrDefault(q => q.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
 
-            // === Om inget uppdrag hittas ===
             if (quest == null)
             {
                 Console.WriteLine("Quest not found.\n");
                 return;
             }
 
-            // === Visa meny för vad användaren vill göra ===
             Console.WriteLine($"\nFound quest: {quest.Title}");
             Console.WriteLine("1. Update quest details");
             Console.WriteLine("2. Mark as completed");
             Console.Write("Choose an option (1 or 2): ");
             string choice = Console.ReadLine();
 
-            // === Alternativ 1: Uppdatera detaljer ===
+            // === Uppdatera detaljer ===
             if (choice == "1")
             {
                 Console.WriteLine("\nLeave a field empty to keep the current value.\n");
 
                 // --- Uppdatera beskrivning ---
-                Console.Write($"New description ({quest.Description}): ");
-                string newDesc = Console.ReadLine();
+                Console.WriteLine($"Current description:\n{quest.Description}");
+                Console.WriteLine("Enter new description (paste multiple lines, type 'END' when done or leave empty to skip):");
+
+                StringBuilder newDescBuilder = new StringBuilder();
+                string line;
+                while ((line = Console.ReadLine()) != null && line.ToUpper() != "END")
+                {
+                    newDescBuilder.AppendLine(line);
+                }
+
+                string newDesc = newDescBuilder.ToString().Trim();
                 if (!string.IsNullOrWhiteSpace(newDesc))
                     quest.Description = newDesc;
 
@@ -160,10 +162,10 @@ namespace Portfolio_Projekt_Quest_Tracker
                     }
                 }
 
-                Console.WriteLine("\n✅ Quest updated successfully!");
+                Console.WriteLine("\n✅ Quest updated successfully!\n");
             }
 
-            // === Alternativ 2: Markera som slutfört ===
+            // === Markera som klar ===
             else if (choice == "2")
             {
                 if (quest.IsCompleted)
@@ -185,8 +187,6 @@ namespace Portfolio_Projekt_Quest_Tracker
                     Console.WriteLine("\nAction canceled.\n");
                 }
             }
-
-            // === Om användaren skrev något annat ===
             else
             {
                 Console.WriteLine("\nInvalid choice. No changes were made.\n");
@@ -194,3 +194,4 @@ namespace Portfolio_Projekt_Quest_Tracker
         }
     }
 }
+
