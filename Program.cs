@@ -6,6 +6,9 @@
         {
             // Initiera NotificationService
             var notifier = new NotificationService();
+            // Initiera GuildAvisorAI
+            var ai = new GuildAdvisorAI();
+
 
             bool running = true; // För att enkelt kunna avsluta while-loopen
             User loggedInUser = null; // För att hålla koll när användare är inloggad
@@ -50,9 +53,9 @@
                         case "3":
                             QuestManager.ManageQuest();
                             break;
-                        //case "4":
-                        //Request Guild advisor help (ai)
-                        //break
+                        case "4":
+                            await ai.InteractWithUserAsync();
+                            break;
                         //case "5":
                         //Show guild report
 
