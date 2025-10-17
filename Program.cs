@@ -1,74 +1,73 @@
-﻿namespace Portfolio_Projekt_Quest_Tracker
+﻿using Spectre.Console;
+using System;
+using System.Threading.Tasks;
+
+namespace Portfolio_Projekt_Quest_Tracker
 {
     internal class Program
     {
         static async Task Main(string[] args)
         {
-            // Initiera NotificationService
             var notifier = new NotificationService();
-            // Initiera GuildAvisorAI
             var ai = new GuildAdvisorAI();
 
-
-            bool running = true; // För att enkelt kunna avsluta while-loopen
-            User loggedInUser = null; // För att hålla koll när användare är inloggad
+            bool running = true;
+            User loggedInUser = null;
 
             while (running)
             {
-                if (loggedInUser == null) // Loopar huvudmenyn så länge användaren inte är inloggad
+                // === Huvudmeny ===
+                if (loggedInUser == null)
                 {
-                    MenuHelper.MainMenu(); // Skriver ut huvudmeny
-                    string choice = Console.ReadLine();
+                    string choice = MenuHelper.ShowMainMenu();
 
-                    switch (choice) // switch sats baserat på användarens val
+                    switch (choice)
                     {
-                        case "1":
+                        case "Register Hero":
                             Authenticator.RegisterHero();
                             break;
-                        case "2":
+
+                        case "Login Hero":
                             loggedInUser = Authenticator.LoginHero();
                             break;
-                        case "3":
+
+                        case "Exit Program":
                             running = false;
-                            Console.WriteLine("Exiting program...");
-                            break;
-                        default:
-                            Console.WriteLine("Invalid choice.");
                             break;
                     }
                 }
+                // === Hjältemeny ===
                 else
                 {
-                    MenuHelper.HeroMenu(loggedInUser.Username); // Skriver ut menyn för hjälte som är inloggad
-                    string heroChoice = Console.ReadLine();
+                    string heroChoice = MenuHelper.ShowHeroMenu(loggedInUser.Username);
 
-                    switch (heroChoice) // Switch sats på samma sätt som tar emot det användaren väljer
+                    switch (heroChoice)
                     {
-                        case "1":
+                        case "Add New Quest":
                             QuestManager.AddQuest();
                             break;
-                        case "2":
+
+                        case "View All Quests":
                             QuestManager.ShowAllQuests();
                             break;
-                        case "3":
+
+                        case "Update/Complete Quest":
                             QuestManager.ManageQuest();
                             break;
-                        case "4":
+
+                        case "Guild Advisor (AI)":
                             await ai.InteractWithUserAsync();
                             break;
-                        //case "5":
-                        //Show guild report
 
-                        case "6":
-                            loggedInUser = null; // Logga ut användare, går tillbaka till huvudmenyn
-                            Console.WriteLine("You have logged out.\n");
-                            break;
-                        default:
-                            Console.WriteLine("Feature coming soon..."); // Tillfälligt för att jag inte gjort klart metoderna
+                        case "Logout":
+                            loggedInUser = null;
+                            AnsiConsole.MarkupLine("[yellow]You have logged out.[/]");
                             break;
                     }
                 }
             }
+
+            AnsiConsole.MarkupLine("[green]Thanks for using Quest Tracker![/]");
         }
     }
 }
