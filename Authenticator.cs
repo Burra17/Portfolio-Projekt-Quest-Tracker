@@ -94,7 +94,28 @@ namespace Portfolio_Projekt_Quest_Tracker
             string username = Console.ReadLine();
 
             Console.Write("Enter password: ");
-            string password = Console.ReadLine();
+            string password = "";
+
+            // Läs ett tecken i taget, och visa '*' i stället för själva tecknet
+            while (true)
+            {
+                var key = Console.ReadKey(true); // true = visa inte tangent i konsolen
+
+                if (key.Key == ConsoleKey.Enter) // Användaren tryckte Enter -> klart
+                    break;
+                else if (key.Key == ConsoleKey.Backspace && password.Length > 0)
+                {
+                    // Ta bort sista tecknet om användaren trycker Backspace
+                    password = password[..^1];
+                    Console.Write("\b \b"); // Ta bort en stjärna visuellt
+                }
+                else
+                {
+                    // Lägg till tecknet i lösenordet och visa en stjärna
+                    password += key.KeyChar;
+                    Console.Write("*");
+                }
+            }
 
             // Hitta användaren i listan baserat på användarnamn och lösenord
             User foundUser = registeredUsers.FirstOrDefault(u =>

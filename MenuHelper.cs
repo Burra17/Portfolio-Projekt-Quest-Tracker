@@ -6,6 +6,7 @@ namespace Portfolio_Projekt_Quest_Tracker
         // Huvud meny som skrivs ut när programmet startar
         public static void MainMenu()
         {
+            Console.Clear();
             Console.WriteLine("1. Register hero.");
             Console.WriteLine("2. Login hero.");
             Console.WriteLine("3. Exit program");
@@ -15,6 +16,7 @@ namespace Portfolio_Projekt_Quest_Tracker
         // Meny för inloggad hjälte
         public static void HeroMenu(string heroName)
         {
+            Console.Clear();
             Console.WriteLine($"\n=== Welcome, {heroName}! ===");
             Console.WriteLine("1. Add new quest");
             Console.WriteLine("2. View all quests");
