@@ -1,6 +1,7 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 using OpenAI;
 using OpenAI.Chat;
+using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,75 +14,81 @@ namespace Portfolio_Projekt_Quest_Tracker
 {
     public class GuildAdvisorAI
     {
-        // --- HTTP-klient för att prata med OpenAI API ---
+        // --- HTTP-klient ---
+        // Vi använder en statisk HttpClient för alla OpenAI-anrop. 
+        // Detta gör att vi inte skapar nya klienter varje gång, vilket är mer effektivt.
         private static readonly HttpClient client = new HttpClient();
 
         // --- Konstruktor ---
         public GuildAdvisorAI()
         {
-            // Hämta API-nyckel från miljövariabler
+            // Hämta OpenAI API-nyckel från miljövariabler
             string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
-            // Felhantering: saknas API-nyckel
+            // Kontrollera att API-nyckeln finns
             if (string.IsNullOrEmpty(apiKey))
-                throw new InvalidOperationException("⚠️ Missing OpenAI API key in environment variables");
+                throw new InvalidOperationException("Missing OpenAI API key in environment variables");
 
-            // Sätt Authorization-headern för alla requests
+            // Lägg till Authorization-headern i alla requests
+            // Detta behövs för att OpenAI ska acceptera våra anrop
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         }
 
-        // === Huvudmeny för AI-interaktion ===
+        // === Huvudmeny med Spectre.Console ===
+        // Användaren kan navigera med piltangenter istället för att skriva siffror
         public async Task InteractWithUserAsync()
         {
             try
             {
+                // Rensa konsolen för en ren start
                 Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("=== 🤖 GUILD ADVISOR AI ===\n");
-                Console.ResetColor();
 
-                // Visa val för användaren
-                Console.WriteLine("1. Generate quest description");
-                Console.WriteLine("2. Suggest quest priority");
-                Console.WriteLine("3. Summarize all quests");
-                Console.WriteLine("4. Return to main menu\n");
-                Console.Write("Your choice: ");
-                string action = Console.ReadLine();
+                // Skriv ut en titel med färg
+                AnsiConsole.MarkupLine("[bold cyan]\n=== GUILD ADVISOR AI ===[/]\n");
 
+                // Skapa en meny med SelectionPrompt från Spectre.Console
+                // Användaren kan navigera med piltangenter och välja ett alternativ
+                var action = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("Choose AI action:")
+                        .PageSize(5) // Max antal synliga alternativ
+                        .AddChoices(new[]
+                        {
+                            "Generate quest description",
+                            "Suggest quest priority",
+                            "Summarize all quests",
+                            "Return to main menu"
+                        }));
+
+                // Hantera användarens val
                 switch (action)
                 {
-                    case "1":
+                    case "Generate quest description":
+                        // Anropa metod som genererar quest-beskrivning
                         await HandleGenerateDescriptionAsync();
                         break;
 
-                    case "2":
+                    case "Suggest quest priority":
+                        // Anropa metod som föreslår prioritet baserat på beskrivning
                         await HandleSuggestPriorityAsync();
                         break;
 
-                    case "3":
+                    case "Summarize all quests":
+                        // Anropa metod som sammanfattar alla quests
                         await HandleSummarizeAsync();
                         break;
 
-                    case "4":
-                        Console.WriteLine("\nReturning to main menu...");
-                        await Task.Delay(500);
-                        break;
-
-                    default:
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("\nInvalid choice. Please try again.\n");
-                        Console.ResetColor();
-                        Console.WriteLine("Press any key to continue...");
-                        Console.ReadKey();
+                    case "Return to main menu":
+                        // Tillbaka till huvudmenyn
+                        AnsiConsole.MarkupLine("\nReturning to main menu...");
+                        await Task.Delay(500); // liten paus för bättre UX
                         break;
                 }
             }
             catch (Exception ex)
             {
-                // Fångar eventuella fel i hela menyn
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nAn error occurred: {ex.Message}");
-                Console.ResetColor();
+                // Fångar eventuella oväntade fel under menyn
+                AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
                 Console.WriteLine("Press any key to continue...");
                 Console.ReadKey();
             }
@@ -90,34 +97,32 @@ namespace Portfolio_Projekt_Quest_Tracker
         // === Alternativ 1: Generera quest description ===
         private async Task HandleGenerateDescriptionAsync()
         {
+            // Rensa konsolen
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("=== 📝 GENERATE QUEST DESCRIPTION ===\n");
-            Console.ResetColor();
 
-            Console.Write("Enter quest title: ");
-            string title = Console.ReadLine();
+            // Skriv ut rubrik i gult
+            AnsiConsole.MarkupLine("[yellow]=== GENERATE QUEST DESCRIPTION ===[/]");
 
+            // Fråga användaren om quest-titel
+            string title = AnsiConsole.Ask<string>("Enter quest title:");
+
+            // Om användaren inte skriver något, avbryt
             if (string.IsNullOrWhiteSpace(title))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Title cannot be empty.");
-                Console.ResetColor();
-                Console.WriteLine("Press any key to continue...");
+                AnsiConsole.MarkupLine("[red]Title cannot be empty.[/]");
                 Console.ReadKey();
                 return;
             }
 
-            Console.WriteLine("\nGenerating description, please wait...\n");
+            // Informera användaren att AI:n analyserar texten
+            AnsiConsole.MarkupLine("\nGenerating description, please wait...\n");
 
+            // Anropa AI för att generera beskrivning
             string description = await GenerateQuestDescriptionAsync(title);
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("=== Quest Description ===\n");
-            Console.ResetColor();
-
+            // Skriv ut resultatet i grönt
+            AnsiConsole.MarkupLine("[green]=== Quest Description ===[/]");
             Console.WriteLine(description);
-            Console.WriteLine("\n==========================");
 
             Console.WriteLine("\nPress any key to return...");
             Console.ReadKey();
@@ -127,39 +132,36 @@ namespace Portfolio_Projekt_Quest_Tracker
         private async Task HandleSuggestPriorityAsync()
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("=== ⚔️ SUGGEST QUEST PRIORITY ===\n");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine("[yellow]=== SUGGEST QUEST PRIORITY ===[/]");
 
-            Console.WriteLine("Paste the quest description below (type 'END' when finished):");
+            // Instruktion till användaren för att klistra in text
+            AnsiConsole.MarkupLine("Paste the quest description (type 'END' when finished):");
 
-            // Bygger upp flera rader tills användaren skriver END
+            // StringBuilder används för att samla flera rader från användaren
             StringBuilder questBuilder = new StringBuilder();
             string line;
             while ((line = Console.ReadLine()) != null && line.ToUpper() != "END")
-            {
                 questBuilder.AppendLine(line);
-            }
 
+            // Konvertera StringBuilder till string och trimma whitespace
             string questDescription = questBuilder.ToString().Trim();
 
+            // Om användaren inte skriver något, sätt default-prioritet
             if (string.IsNullOrWhiteSpace(questDescription))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("\nNo description provided. Defaulting to Low priority.");
-                Console.ResetColor();
-                Console.WriteLine("Press any key to return...");
+                AnsiConsole.MarkupLine("[red]No description provided. Defaulting to Low priority.[/]");
                 Console.ReadKey();
                 return;
             }
 
-            Console.WriteLine("\nAnalyzing quest details...");
+            // Informera användaren att AI:n analyserar questen
+            AnsiConsole.MarkupLine("\nAnalyzing quest details...");
+
+            // Anropa AI för att få prioritet
             string priority = await SuggestPriorityAsync(questDescription);
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\nSuggested priority: {priority}\n");
-            Console.ResetColor();
-
+            // Skriv ut resultatet i grönt
+            AnsiConsole.MarkupLine($"[green]Suggested priority: {priority}[/]");
             Console.WriteLine("Press any key to return...");
             Console.ReadKey();
         }
@@ -168,23 +170,23 @@ namespace Portfolio_Projekt_Quest_Tracker
         private async Task HandleSummarizeAsync()
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("=== 📜 SUMMARIZE ALL QUESTS ===\n");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine("[yellow]=== SUMMARIZE ALL QUESTS ===[/]");
 
+            // Anropa AI för att skapa sammanfattning
             string summary = await SummarizeQuestsAsync(QuestManager.quests);
 
-            Console.ForegroundColor = ConsoleColor.Green;
+            // Skriv ut resultatet i grönt
+            AnsiConsole.MarkupLine("[green]All Quests Summary:[/]");
             Console.WriteLine(summary);
-            Console.ResetColor();
 
             Console.WriteLine("\nPress any key to return...");
             Console.ReadKey();
         }
 
-        // === Skicka prompt till AI för att generera quest-beskrivning ===
+        // === AI: Generera quest-beskrivning ---
         public async Task<string> GenerateQuestDescriptionAsync(string title)
         {
+            // Skapa JSON-payload som skickas till OpenAI
             var requestBody = new
             {
                 model = "gpt-4.1-mini",
@@ -195,14 +197,17 @@ namespace Portfolio_Projekt_Quest_Tracker
                 }
             };
 
+            // Skicka request och få svar
             string reply = await SendRequestAsync(requestBody);
 
+            // Rensa bort markdown-symboler
             return reply.Trim().Replace("**", "").Replace("*", "");
         }
 
-        // === Skicka prompt till AI för att föreslå prioritet ===
+        // === AI: Föreslå prioritet ---
         public async Task<string> SuggestPriorityAsync(string questDescription)
         {
+            // Ta bort radbrytningar så texten blir en lång rad
             string cleanedDescription = questDescription.Replace("\r", " ").Replace("\n", " ");
 
             var requestBody = new
@@ -217,21 +222,20 @@ namespace Portfolio_Projekt_Quest_Tracker
 
             string reply = await SendRequestAsync(requestBody);
 
-            // Fångar bara relevant ord från AI-svaret
+            // Extrahera bara High/Medium/Low
             if (reply.Contains("High", StringComparison.OrdinalIgnoreCase)) return "High";
             if (reply.Contains("Medium", StringComparison.OrdinalIgnoreCase)) return "Medium";
             return "Low";
         }
 
-        // === Skicka prompt till AI för att sammanfatta alla quests ===
+        // === AI: Sammanfatta alla quests ---
         public async Task<string> SummarizeQuestsAsync(List<Quest> quests)
         {
-            if (quests.Count == 0)
-                return "You have no quests at the moment.";
+            if (quests.Count == 0) return "You have no quests at the moment.";
 
-            // Bygger upp en lista med alla quests för AI:n
+            // Skapa en sträng med alla quests och status
             string allQuests = string.Join("\n", quests.Select(q =>
-                $"{q.Title} - {(q.IsCompleted ? "✅ Completed" : "❌ Pending")}: {q.Description}"));
+                $"{q.Title} - {(q.IsCompleted ? "Completed" : "Pending")}: {q.Description}"));
 
             var requestBody = new
             {
@@ -244,27 +248,27 @@ namespace Portfolio_Projekt_Quest_Tracker
             };
 
             string reply = await SendRequestAsync(requestBody);
-
             return reply.Trim().Replace("**", "").Replace("*", "");
         }
 
-        // === Gemensam metod för att skicka request till OpenAI ===
+        // === Skicka request till OpenAI API ---
         private async Task<string> SendRequestAsync(object requestBody)
         {
+            // Serialisera objektet till JSON
             string json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             try
             {
-                // Skicka POST-request till OpenAI API
+                // Skicka POST-request till OpenAI
                 var response = await client.PostAsync("https://api.openai.com/v1/chat/completions", content);
                 string responseString = await response.Content.ReadAsStringAsync();
 
+                // Parsar JSON-responsen
                 using JsonDocument doc = JsonDocument.Parse(responseString);
 
-                // Extrahera AI-svaret ur JSON
-                string reply = doc.RootElement
-                                   .GetProperty("choices")[0]
+                // Extrahera innehållet från AI-svaret
+                string reply = doc.RootElement.GetProperty("choices")[0]
                                    .GetProperty("message")
                                    .GetProperty("content")
                                    .GetString()!;
@@ -273,8 +277,8 @@ namespace Portfolio_Projekt_Quest_Tracker
             }
             catch (Exception ex)
             {
-                // Felhantering vid nätverksproblem eller API-fel
-                return $"⚠️ Guild Advisor is currently unavailable: {ex.Message}";
+                // Om något går fel, returnera meddelande
+                return $"Guild Advisor is currently unavailable: {ex.Message}";
             }
         }
     }

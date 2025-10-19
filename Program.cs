@@ -59,6 +59,10 @@ namespace Portfolio_Projekt_Quest_Tracker
                             await ai.InteractWithUserAsync();
                             break;
 
+                        case "Check Quest Deadlines":  
+                            await notifier.SendDeadlineAlertsAsync(loggedInUser);
+                            break;
+
                         case "Logout":
                             loggedInUser = null;
                             AnsiConsole.MarkupLine("[yellow]You have logged out.[/]");
