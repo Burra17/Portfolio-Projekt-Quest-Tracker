@@ -1,91 +1,64 @@
-﻿using Twilio;
-using Twilio.Rest.Api.V2010.Account;
-using Twilio.Types;
+﻿using Spectre.Console;
 using System;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Portfolio_Projekt_Quest_Tracker
 {
     public class NotificationService
     {
-        private readonly string _accountSid;     // Twilio Account SID
-        private readonly string _authToken;      // Twilio Auth Token
-        private readonly string _fromNumber;     // Telefonnummer som SMS skickas från
+        private readonly string _accountSid;
+        private readonly string _authToken;
+        private readonly string _fromNumber;
 
-        // Konstruktor
         public NotificationService()
         {
             _accountSid = Environment.GetEnvironmentVariable("TWILIO_ACCOUNT_SID");
             _authToken = Environment.GetEnvironmentVariable("TWILIO_AUTH_TOKEN");
             _fromNumber = Environment.GetEnvironmentVariable("TWILIO_FROM_NUMBER");
 
-            if (string.IsNullOrEmpty(_accountSid) || string.IsNullOrEmpty(_authToken))
-                throw new InvalidOperationException("Twilio credentials are missing in environment variables.");
-
-            // Initiera Twilio-klienten
-            TwilioClient.Init(_accountSid, _authToken);
+            if (!string.IsNullOrEmpty(_accountSid) && !string.IsNullOrEmpty(_authToken))
+            {
+                Twilio.TwilioClient.Init(_accountSid, _authToken);
+            }
         }
 
-        // Skickar ett SMS
+        // --- Skicka SMS generellt ---
         public async Task<string> SendSmsAsync(string toNumber, string message)
         {
+            if (string.IsNullOrEmpty(_accountSid) || string.IsNullOrEmpty(_authToken))
+                return "Twilio not configured.";
+
             try
             {
-                var messageResource = await MessageResource.CreateAsync(
-                    to: new PhoneNumber(toNumber),
-                    from: new PhoneNumber(_fromNumber ?? "+1XXXX"),
+                var msg = await Twilio.Rest.Api.V2010.Account.MessageResource.CreateAsync(
+                    to: new Twilio.Types.PhoneNumber(toNumber),
+                    from: new Twilio.Types.PhoneNumber(_fromNumber),
                     body: message
                 );
 
-                Console.WriteLine($"SMS skickat till {toNumber}: {message}");
-                return messageResource.Sid;
+                return $"SMS sent";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid SMS-utskick: {ex.Message}");
-                return null;
+                return $"Error sending SMS: {ex.Message}";
             }
         }
 
-        // Skickar påminnelser för quests som närmar sig deadline (< 24 timmar)
-        public async Task SendDeadlineAlertsAsync(User user)
+        // --- Skicka deadline-notis för ett quest ---
+        public async Task SendDeadlineNotificationAsync(Quest quest, string userPhone)
         {
-            if (user == null)
-            {
-                Console.WriteLine("Ingen hjälte inloggad. Kan inte skicka notiser.");
-                return;
-            }
+            string message = $"⚔️ Hjälte, ditt uppdrag '{quest.Title}' måste slutföras inom 24 timmar!";
 
-            bool anyAlert = false;
+            // Här skickas SMS
+            await SendSmsAsync(userPhone, message);
 
-            foreach (var quest in QuestManager.quests)
-            {
-                if (quest.IsCompleted) continue; // Hoppa över slutförda quests
-
-                double hoursLeft = (quest.DueDate - DateTime.Now).TotalHours;
-
-                // Visa deadline
-                Console.WriteLine($"Quest: {quest.Title}");
-                Console.WriteLine($"Due: {quest.DueDate:yyyy-MM-dd HH:mm}");
-                Console.WriteLine($"Time left: {Math.Round(hoursLeft, 1)} timmar");
-
-                if (hoursLeft <= 24 && hoursLeft > 0)
-                {
-                    string message = $"Hjälte {user.Username}, ditt uppdrag \"{quest.Title}\" måste vara klart imorgon!";
-                    await SendSmsAsync(user.PhoneNumber, message);
-                    Console.WriteLine("Notis skickad!");
-                    anyAlert = true;
-                }
-
-                Console.WriteLine(); // tom rad mellan quests
-            }
-
-            if (!anyAlert)
-                Console.WriteLine("Inga quests nära deadline just nu.");
-
-            Console.WriteLine("\nTryck på Enter för att återgå till menyn...");
-            Console.ReadLine(); // Vänta på användaren innan menyn visas
+            // Visa panel i Spectre.Console utan SMS-ID
+            var panel = new Panel($"Notification sent for '{quest.Title}'!")
+                .Border(BoxBorder.Rounded)
+                .BorderStyle(Style.Parse("green"))
+                .Header("[bold green]ALERT[/]")
+                .HeaderAlignment(Justify.Center);
+            AnsiConsole.Write(panel);
         }
     }
 }

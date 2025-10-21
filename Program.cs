@@ -8,15 +8,16 @@ namespace Portfolio_Projekt_Quest_Tracker
     {
         static async Task Main(string[] args)
         {
+            // Initiera services
             var notifier = new NotificationService();
             var ai = new GuildAdvisorAI();
 
             bool running = true;
             User loggedInUser = null;
 
+            // --- Huvudloop ---
             while (running)
             {
-                // === Huvudmeny ===
                 if (loggedInUser == null)
                 {
                     string choice = MenuHelper.ShowMainMenu();
@@ -36,7 +37,6 @@ namespace Portfolio_Projekt_Quest_Tracker
                             break;
                     }
                 }
-                // === Hjältemeny ===
                 else
                 {
                     string heroChoice = MenuHelper.ShowHeroMenu(loggedInUser.Username);
@@ -59,19 +59,16 @@ namespace Portfolio_Projekt_Quest_Tracker
                             await ai.InteractWithUserAsync();
                             break;
 
-                        case "Check Quest Deadlines":  
-                            await notifier.SendDeadlineAlertsAsync(loggedInUser);
+                        case "Guild Report":
+                            await QuestManager.ShowGuildReportAsync(notifier, loggedInUser.PhoneNumber);
                             break;
 
                         case "Logout":
                             loggedInUser = null;
-                            AnsiConsole.MarkupLine("[yellow]You have logged out.[/]");
                             break;
                     }
                 }
             }
-
-            AnsiConsole.MarkupLine("[green]Thanks for using Quest Tracker![/]");
         }
     }
 }

@@ -35,6 +35,8 @@ namespace Portfolio_Projekt_Quest_Tracker
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Username cannot be empty.");
                     Console.ResetColor();
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey();
                     return;
                 }
 
@@ -44,6 +46,8 @@ namespace Portfolio_Projekt_Quest_Tracker
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Username already exists. Choose another one.");
                     Console.ResetColor();
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey();
                     return;
                 }
 
@@ -74,6 +78,8 @@ namespace Portfolio_Projekt_Quest_Tracker
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("\nPassword must be at least 6 characters long, include one number, one uppercase letter, and one special character.");
                     Console.ResetColor();
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey();
                     return;
                 }
 
@@ -86,6 +92,8 @@ namespace Portfolio_Projekt_Quest_Tracker
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Invalid phone number format. Must start with + and include country code.");
                     Console.ResetColor();
+                    Console.WriteLine("Press any key to return...");
+                    Console.ReadKey();
                     return;
                 }
 
@@ -216,15 +224,12 @@ namespace Portfolio_Projekt_Quest_Tracker
         // =============================
         private static bool IsStrongPassword(string password)
         {
-            // Returnera false om lösenordet är tomt
             if (string.IsNullOrEmpty(password)) return false;
 
-            // Kontrollera att lösenordet innehåller minst:
             bool hasUpper = password.Any(char.IsUpper); // minst en versal
             bool hasDigit = password.Any(char.IsDigit); // minst en siffra
             bool hasSpecial = Regex.IsMatch(password, @"[!@#$%^&*(),.?""{}|<>]"); // minst ett specialtecken
 
-            // Lösenordet måste vara minst 6 tecken långt och uppfylla alla krav
             return password.Length >= 6 && hasUpper && hasDigit && hasSpecial;
         }
     }
