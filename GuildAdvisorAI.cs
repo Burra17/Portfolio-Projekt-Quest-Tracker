@@ -193,7 +193,7 @@ namespace Portfolio_Projekt_Quest_Tracker
                 messages = new[]
                 {
                     new { role = "system", content = "You are a Guild Advisor. Generate epic quest descriptions." },
-                    new { role = "user", content = $"Generate a detailed, heroic quest description for the title: {title}" }
+                    new { role = "user", content = $"Generate a detailed, not that long, that looks good in Visual Studio terminal, heroic quest description for the title: {title}" }
                 }
             };
 
