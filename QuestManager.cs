@@ -9,250 +9,158 @@ namespace Portfolio_Projekt_Quest_Tracker
 {
     public class QuestManager
     {
-        // === Lista över alla quests (lagras i minnet under körning) ===
-        public static List<Quest> quests = new List<Quest>();
-
-        // === SKAPA NYTT UPPDRAG ===
-        public static void AddQuest()
+        // --- Lägg till nytt quest ---
+        public static void AddQuest(User user)
         {
             try
             {
                 AnsiConsole.Clear();
                 AnsiConsole.MarkupLine("[bold cyan]=== CREATE NEW QUEST ===[/]\n");
 
-                // --- Titel ---
-                string title;
-                do
-                {
-                    Console.Write("Enter quest title: ");
-                    title = Console.ReadLine();
-                    if (string.IsNullOrWhiteSpace(title))
-                        AnsiConsole.MarkupLine("[red]Title cannot be empty.[/]");
-                } while (string.IsNullOrWhiteSpace(title));
+                Console.Write("Enter quest title: ");
+                string title = Console.ReadLine();
 
-                // --- Beskrivning ---
-                AnsiConsole.MarkupLine("\nEnter quest description (press Enter and type 'END' when done):");
-                StringBuilder descBuilder = new StringBuilder();
-                string line;
-                while ((line = Console.ReadLine()) != null && line.ToUpper() != "END")
-                    descBuilder.AppendLine(line);
+                Console.Write("Enter quest description: ");
+                string description = Console.ReadLine();
 
-                string description = string.IsNullOrWhiteSpace(descBuilder.ToString()) ? "No description provided." : descBuilder.ToString().Trim();
+                Console.Write("Enter due date (YYYY-MM-DD): ");
+                DateTime dueDate = DateTime.Parse(Console.ReadLine());
 
-                // --- Deadline ---
-                DateTime dueDate;
-                while (true)
-                {
-                    Console.Write("\nEnter due date (YYYY-MM-DD): ");
-                    if (DateTime.TryParse(Console.ReadLine(), out dueDate))
-                        break;
-                    AnsiConsole.MarkupLine("[red]Invalid date format.[/]");
-                }
+                Console.Write("Enter priority (High / Medium / Low): ");
+                string priority = Console.ReadLine();
 
-                // --- Prioritet ---
-                string priority;
-                while (true)
-                {
-                    Console.Write("Enter priority (High / Medium / Low): ");
-                    priority = Console.ReadLine();
-                    if (!string.IsNullOrWhiteSpace(priority) &&
-                        (priority.Equals("High", StringComparison.OrdinalIgnoreCase) ||
-                         priority.Equals("Medium", StringComparison.OrdinalIgnoreCase) ||
-                         priority.Equals("Low", StringComparison.OrdinalIgnoreCase)))
-                        break;
-                    AnsiConsole.MarkupLine("[red]Invalid priority. Use High, Medium or Low.[/]");
-                }
+                var quest = new Quest(title, description, dueDate, priority);
+                user.Quests.Add(quest);
 
-                // --- Lägg till quest ---
-                quests.Add(new Quest(title, description, dueDate, char.ToUpper(priority[0]) + priority.Substring(1).ToLower()));
+                Authenticator.SaveAll();
 
-                // --- Bekräftelse panel ---
-                var panel = new Panel($"✅ Quest '[bold]{title}[/]' added successfully!\nDue: {dueDate:yyyy-MM-dd}, Priority: {priority}")
+                AnsiConsole.MarkupLine($"[green]Quest '{title}' added successfully![/]");
+                Console.ReadKey();
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
+                Console.ReadKey();
+            }
+        }
+
+        // --- Visa alla quests ---
+        public static void ShowAllQuests(User user)
+        {
+            AnsiConsole.Clear();
+            AnsiConsole.MarkupLine($"[bold yellow]=== {user.Username}'s Quests ===[/]\n");
+
+            if (user.Quests.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[grey]No quests yet.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            foreach (var quest in user.Quests)
+            {
+                string status = quest.IsCompleted ? "[green] Completed[/]" : "[white] Active[/]";
+                var panel = new Panel($"[bold]{quest.Title}[/]\n{quest.Description}\nDue: {quest.DueDate:yyyy-MM-dd}\nPriority: {quest.Priority}\nStatus: {status}")
                     .Border(BoxBorder.Rounded)
-                    .BorderStyle(Style.Parse("green"))
-                    .Header("[bold green]SUCCESS[/]")
-                    .HeaderAlignment(Justify.Center);
+                    .BorderStyle(Style.Parse("cyan"));
                 AnsiConsole.Write(panel);
+            }
 
-                Console.WriteLine("\nPress Enter to return to the menu...");
-                Console.ReadLine();
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
-                Console.WriteLine("Press Enter to continue...");
-                Console.ReadLine();
-            }
+            Console.WriteLine("\nPress any key to return...");
+            Console.ReadKey();
         }
 
-        // === VISA ALLA QUESTS ===
-        public static void ShowAllQuests()
+        // --- Hantera quest ---
+        public static void ManageQuest(User user)
         {
-            try
+            AnsiConsole.Clear();
+            AnsiConsole.MarkupLine("[bold magenta]=== MANAGE QUEST ===[/]\n");
+
+            if (user.Quests.Count == 0)
             {
-                AnsiConsole.Clear();
-                AnsiConsole.MarkupLine("[bold yellow]=== ALL QUESTS ===[/]\n");
-
-                if (quests.Count == 0)
-                {
-                    AnsiConsole.MarkupLine("[grey]No quests available.[/]");
-                }
-                else
-                {
-                    foreach (var quest in quests)
-                    {
-                        string status = quest.IsCompleted ? "[green]✅ Completed[/]" : "[white]❌ Active[/]";
-                        var panel = new Panel($"[bold]{quest.Title}[/]\n{quest.Description}\nDue: {quest.DueDate:yyyy-MM-dd}\nPriority: {quest.Priority}\nStatus: {status}")
-                            .Border(BoxBorder.Rounded)
-                            .BorderStyle(Style.Parse("cyan"));
-                        AnsiConsole.Write(panel);
-                    }
-
-                    AnsiConsole.MarkupLine($"\nTotal quests: [bold]{quests.Count}[/]");
-                }
-
-                Console.WriteLine("\nPress Enter to return to the menu...");
-                Console.ReadLine();
+                AnsiConsole.MarkupLine("[grey]No quests to manage.[/]");
+                Console.ReadKey();
+                return;
             }
-            catch (Exception ex)
+
+            var titles = user.Quests.Select(q => q.Title).ToList();
+            string selected = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Select a quest to update or complete:")
+                    .AddChoices(titles));
+
+            var quest = user.Quests.First(q => q.Title == selected);
+
+            var action = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Choose an action:")
+                    .AddChoices("Mark as completed", "Edit quest", "Cancel"));
+
+            if (action == "Mark as completed")
             {
-                AnsiConsole.MarkupLine($"[red]An error occurred while displaying quests: {ex.Message}[/]");
-                Console.WriteLine("Press Enter to continue...");
-                Console.ReadLine();
+                quest.IsCompleted = true;
+                AnsiConsole.MarkupLine($"[green]Quest '{quest.Title}' marked as completed![/]");
             }
+            else if (action == "Edit quest")
+            {
+                Console.Write("New description (leave empty to keep): ");
+                string desc = Console.ReadLine();
+                if (!string.IsNullOrWhiteSpace(desc))
+                    quest.Description = desc;
+
+                Console.Write("New due date (leave empty to keep): ");
+                string dateInput = Console.ReadLine();
+                if (DateTime.TryParse(dateInput, out DateTime newDate))
+                    quest.DueDate = newDate;
+
+                Console.Write("New priority (leave empty to keep): ");
+                string prio = Console.ReadLine();
+                if (!string.IsNullOrWhiteSpace(prio))
+                    quest.Priority = prio;
+            }
+
+            Authenticator.SaveAll();
+            Console.WriteLine("\nPress any key to return...");
+            Console.ReadKey();
         }
 
-        // === HANTERA QUEST (uppdatera eller markera som klar) ===
-        public static void ManageQuest()
+        // --- Guild report (visar bara info, skickar inte notiser längre) ---
+        public static async Task ShowGuildReportAsync(NotificationService notifier, User user)
         {
-            try
-            {
-                AnsiConsole.Clear();
-                AnsiConsole.MarkupLine("[bold magenta]=== MANAGE QUEST ===[/]\n");
+            AnsiConsole.Clear();
+            AnsiConsole.MarkupLine($"[bold yellow]=== {user.Username}'s Guild Report ===[/]\n");
 
-                // --- Visa questtitlar som lista för enklare val ---
-                if (quests.Count == 0)
-                {
-                    AnsiConsole.MarkupLine("[grey]No quests available to manage.[/]");
-                    Console.WriteLine("Press Enter to return...");
-                    Console.ReadLine();
-                    return;
-                }
+            int total = user.Quests.Count;
+            int completed = user.Quests.Count(q => q.IsCompleted);
+            int active = total - completed;
+            int nearDeadline = user.Quests.Count(q => !q.IsCompleted && (q.DueDate - DateTime.Now).TotalHours <= 24);
 
-                var titles = quests.Select(q => q.Title).ToList();
-                string selectedTitle = AnsiConsole.Prompt(
-                    new SelectionPrompt<string>()
-                        .Title("Select a quest to update or complete:")
-                        .AddChoices(titles)
-                );
+            AnsiConsole.MarkupLine($"Total quests: [bold]{total}[/]");
+            AnsiConsole.MarkupLine($"Completed: [green]{completed}[/]");
+            AnsiConsole.MarkupLine($"Active: [white]{active}[/]");
+            AnsiConsole.MarkupLine($"Near deadline (<24h): [red]{nearDeadline}[/]");
 
-                Quest quest = quests.First(q => q.Title.Equals(selectedTitle, StringComparison.OrdinalIgnoreCase));
-
-                AnsiConsole.Clear();
-                AnsiConsole.MarkupLine($"[cyan]Selected quest: {quest.Title}[/]\n");
-
-                var choice = AnsiConsole.Prompt(
-                    new SelectionPrompt<string>()
-                        .Title("Choose an action:")
-                        .AddChoices("Update quest details", "Mark as completed")
-                );
-
-                if (choice == "Update quest details")
-                {
-                    AnsiConsole.MarkupLine("[bold]Leave empty to keep current value.[/]\n");
-
-                    // --- Uppdatera beskrivning ---
-                    Console.WriteLine($"Current description:\n{quest.Description}");
-                    Console.WriteLine("Enter new description (type 'END' when done or leave empty to skip):");
-                    string firstLine = Console.ReadLine();
-                    if (!string.IsNullOrWhiteSpace(firstLine))
-                    {
-                        StringBuilder newDescBuilder = new StringBuilder();
-                        newDescBuilder.AppendLine(firstLine);
-                        string line;
-                        while ((line = Console.ReadLine()) != null && line.ToUpper() != "END")
-                            newDescBuilder.AppendLine(line);
-
-                        string newDesc = newDescBuilder.ToString().Trim();
-                        if (!string.IsNullOrWhiteSpace(newDesc))
-                            quest.Description = newDesc;
-                    }
-
-                    // --- Uppdatera datum ---
-                    Console.Write($"New due date ({quest.DueDate:yyyy-MM-dd}): ");
-                    string newDate = Console.ReadLine();
-                    if (!string.IsNullOrWhiteSpace(newDate) && DateTime.TryParse(newDate, out DateTime parsedDate))
-                        quest.DueDate = parsedDate;
-
-                    // --- Uppdatera prioritet ---
-                    Console.Write($"New priority ({quest.Priority}): ");
-                    string newPriority = Console.ReadLine();
-                    if (!string.IsNullOrWhiteSpace(newPriority) &&
-                        (newPriority.Equals("High", StringComparison.OrdinalIgnoreCase) ||
-                         newPriority.Equals("Medium", StringComparison.OrdinalIgnoreCase) ||
-                         newPriority.Equals("Low", StringComparison.OrdinalIgnoreCase)))
-                        quest.Priority = char.ToUpper(newPriority[0]) + newPriority.Substring(1).ToLower();
-
-                    AnsiConsole.MarkupLine("[green]✅ Quest updated successfully![/]");
-                }
-                else if (choice == "Mark as completed")
-                {
-                    if (!quest.IsCompleted)
-                        quest.IsCompleted = true;
-                    AnsiConsole.MarkupLine($"[green]🏁 Quest '{quest.Title}' marked as completed![/]");
-                }
-
-                Console.WriteLine("\nPress Enter to return to the menu...");
-                Console.ReadLine();
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
-                Console.WriteLine("Press Enter to return...");
-                Console.ReadLine();
-            }
+            Console.WriteLine("\nPress Enter to return...");
+            Console.ReadLine();
         }
 
-        // === VISA GUILD REPORT OCH SKICKA NOTISER ===
-        public static async Task ShowGuildReportAsync(NotificationService notifier, string userPhone)
+        // --- Ny metod: kolla deadlines vid inloggning ---
+        public static async Task CheckDeadlinesOnLoginAsync(User user, NotificationService notifier)
         {
-            try
+            var soonDue = user.Quests
+                .Where(q => !q.IsCompleted && !q.DeadlineNotified && (q.DueDate - DateTime.Now).TotalHours <= 24)
+                .ToList();
+
+            if (soonDue.Count == 0)
+                return;
+
+            foreach (var quest in soonDue)
             {
-                AnsiConsole.Clear();
-                AnsiConsole.MarkupLine("[bold yellow]=== GUILD REPORT ===[/]\n");
-
-                int total = quests.Count;
-                int completed = quests.Count(q => q.IsCompleted);
-                int active = total - completed;
-                int nearDeadline = quests.Count(q => !q.IsCompleted && (q.DueDate - DateTime.Now).TotalHours <= 24);
-
-                AnsiConsole.MarkupLine($"Total quests: [bold]{total}[/]");
-                AnsiConsole.MarkupLine($"Completed quests: [green]{completed}[/]");
-                AnsiConsole.MarkupLine($"Active quests: [white]{active}[/]");
-                AnsiConsole.MarkupLine($"Quests near deadline (<24h): [red]{nearDeadline}[/]");
-
-                // --- Skicka notiser direkt ---
-                foreach (var quest in quests.Where(q => !q.IsCompleted && (q.DueDate - DateTime.Now).TotalHours <= 24))
-                {
-                    await notifier.SendSmsAsync(userPhone, $"⚔️ Hjälte, ditt uppdrag '{quest.Title}' måste slutföras inom 24 timmar!");
-
-                    var panel = new Panel($"Notification sent for '{quest.Title}'!")
-                        .Border(BoxBorder.Rounded)
-                        .BorderStyle(Style.Parse("green"))
-                        .Header("[bold green]ALERT[/]")
-                        .HeaderAlignment(Justify.Center);
-                    AnsiConsole.Write(panel);
-                }
-
-                Console.WriteLine("\nPress Enter to return to the menu...");
-                Console.ReadLine();
+                await notifier.SendDeadlineNotificationAsync(quest, user.PhoneNumber);
+                quest.DeadlineNotified = true;
             }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]An error occurred while showing guild report: {ex.Message}[/]");
-                Console.WriteLine("Press Enter to return...");
-                Console.ReadLine();
-            }
+
+            Authenticator.SaveAll(); // Spara att notiser skickats
         }
     }
 }

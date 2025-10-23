@@ -22,7 +22,7 @@ namespace Portfolio_Projekt_Quest_Tracker
             }
         }
 
-        // --- Skicka SMS generellt ---
+        // Skicka SMS
         public async Task<string> SendSmsAsync(string toNumber, string message)
         {
             if (string.IsNullOrEmpty(_accountSid) || string.IsNullOrEmpty(_authToken))
@@ -44,15 +44,13 @@ namespace Portfolio_Projekt_Quest_Tracker
             }
         }
 
-        // --- Skicka deadline-notis för ett quest ---
+        // Skicka deadline-notis (och visa panel)
         public async Task SendDeadlineNotificationAsync(Quest quest, string userPhone)
         {
-            string message = $"⚔️ Hjälte, ditt uppdrag '{quest.Title}' måste slutföras inom 24 timmar!";
+            string message = $"⚔️ Hero! The quest '{quest.Title}' must be completed within 24 hours!";
 
-            // Här skickas SMS
             await SendSmsAsync(userPhone, message);
 
-            // Visa panel i Spectre.Console utan SMS-ID
             var panel = new Panel($"Notification sent for '{quest.Title}'!")
                 .Border(BoxBorder.Rounded)
                 .BorderStyle(Style.Parse("green"))

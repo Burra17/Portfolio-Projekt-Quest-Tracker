@@ -1,236 +1,158 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Portfolio_Projekt_Quest_Tracker
 {
+    /// <summary>
+    /// Sköter inloggning, registrering och lösenordsvalidering.
+    /// Använder DataStorage för att läsa/spara användare.
+    /// </summary>
     public class Authenticator
     {
-        // Lista över registrerade användare (lagras i minnet)
-        private static List<User> registeredUsers = new List<User>();
+        // Lista med alla registrerade hjältar, laddas vid start
+        private static List<User> registeredUsers = DataStorage.LoadUsers();
 
-        // NotificationService används för att kunna skicka SMS via t.ex. Twilio
+        // Service för SMS-notiser (Twilio)
         private static NotificationService notifier = new NotificationService();
 
-        // 🧪 Testläge — true = inga riktiga SMS skickas (kod visas direkt i terminalen)
+        // Testläge = inga riktiga SMS skickas
         private static bool testMode = true;
 
-        // =============================
-        //        REGISTRERING
-        // =============================
+        // === REGISTRERA NY HJÄLTE ===
         public static void RegisterHero()
         {
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("HERO REGISTRATION");
-            Console.WriteLine("======================\n");
+            Console.WriteLine("=== HERO REGISTRATION ===\n");
             Console.ResetColor();
 
-            try
+            // --- Användarnamn ---
+            Console.Write("Enter hero name: ");
+            string username = Console.ReadLine();
+
+            // Kontrollera giltighet och att namnet inte redan finns
+            if (string.IsNullOrWhiteSpace(username) ||
+                registeredUsers.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
             {
-                // --- Användarnamn ---
-                Console.Write("Enter hero name (username): ");
-                string username = Console.ReadLine();
-
-                if (string.IsNullOrWhiteSpace(username))
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Username cannot be empty.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey();
-                    return;
-                }
-
-                // Kontrollera om namnet redan finns
-                if (registeredUsers.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Username already exists. Choose another one.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey();
-                    return;
-                }
-
-                // --- Lösenord ---
-                Console.Write("Enter password: ");
-                string password = "";
-                while (true)
-                {
-                    var key = Console.ReadKey(true);
-
-                    if (key.Key == ConsoleKey.Enter)
-                        break;
-                    else if (key.Key == ConsoleKey.Backspace && password.Length > 0)
-                    {
-                        password = password[..^1];
-                        Console.Write("\b \b");
-                    }
-                    else
-                    {
-                        password += key.KeyChar;
-                        Console.Write("*");
-                    }
-                }
-
-                // Validera lösenord
-                if (!IsStrongPassword(password))
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("\nPassword must be at least 6 characters long, include one number, one uppercase letter, and one special character.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey();
-                    return;
-                }
-
-                // --- Telefonnummer ---
-                Console.Write("\nEnter your phone number (+46..): ");
-                string phone = Console.ReadLine();
-
-                if (string.IsNullOrWhiteSpace(phone) || !phone.StartsWith("+"))
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Invalid phone number format. Must start with + and include country code.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey();
-                    return;
-                }
-
-                // Skapa användare
-                registeredUsers.Add(new User(username, password, phone));
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\nHero '{username}' registered successfully!");
-                Console.ResetColor();
-
-                Console.WriteLine("\nPress any key to return to main menu...");
+                Console.WriteLine("❌ Invalid or taken username.");
                 Console.ReadKey();
+                return;
             }
-            catch (Exception ex)
+
+            // --- Lösenord ---
+            Console.Write("Enter password: ");
+            string password = ReadPassword();
+
+            if (!IsStrongPassword(password))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nAn error occurred: {ex.Message}");
-                Console.ResetColor();
-                Console.WriteLine("Press any key to return...");
+                Console.WriteLine("\n❌ Weak password. Must include uppercase, number, and special char.");
                 Console.ReadKey();
+                return;
             }
+
+            // --- Telefonnummer ---
+            Console.Write("\nEnter phone number (+46...): ");
+            string phone = Console.ReadLine();
+
+            // Skapa användare och spara
+            var newUser = new User(username, password, phone);
+            registeredUsers.Add(newUser);
+            DataStorage.SaveUsers(registeredUsers);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n✅ Hero '{username}' registered successfully!");
+            Console.ResetColor();
+            Console.ReadKey();
         }
 
-        // =============================
-        //          INLOGGNING
-        // =============================
+        // === INLOGGNING ===
         public static User LoginHero()
         {
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("HERO LOGIN");
-            Console.WriteLine("======================\n");
+            Console.WriteLine("=== HERO LOGIN ===\n");
             Console.ResetColor();
 
-            try
+            Console.Write("Enter hero name: ");
+            string username = Console.ReadLine();
+
+            Console.Write("Enter password: ");
+            string password = ReadPassword();
+
+            // Hitta användare i listan
+            var user = registeredUsers.FirstOrDefault(u => u.Username == username && u.Password == password);
+            if (user == null)
             {
-                // --- Användarnamn ---
-                Console.Write("Enter hero name: ");
-                string username = Console.ReadLine();
-
-                // --- Lösenord ---
-                Console.Write("Enter password: ");
-                string password = "";
-                while (true)
-                {
-                    var key = Console.ReadKey(true);
-
-                    if (key.Key == ConsoleKey.Enter)
-                        break;
-                    else if (key.Key == ConsoleKey.Backspace && password.Length > 0)
-                    {
-                        password = password[..^1];
-                        Console.Write("\b \b");
-                    }
-                    else
-                    {
-                        password += key.KeyChar;
-                        Console.Write("*");
-                    }
-                }
-
-                // Kolla om användaren finns
-                User foundUser = registeredUsers.FirstOrDefault(u =>
-                    u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) &&
-                    u.Password == password);
-
-                if (foundUser == null)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("\nInvalid username or password.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey();
-                    return null;
-                }
-
-                // --- Skicka/verifiera 2FA-kod ---
-                string code = new Random().Next(100000, 999999).ToString();
-
-                if (testMode)
-                {
-                    // 🧪 Testläge — visa koden direkt
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"\n[TESTMODE] 2FA code for {foundUser.Username}: {code}");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    Console.WriteLine("\nSending verification code via SMS...");
-                    notifier.SendSmsAsync(foundUser.PhoneNumber, $"Your 2FA code is: {code}").Wait();
-                }
-
-                Console.Write("\nEnter the 2FA code: ");
-                string inputCode = Console.ReadLine();
-
-                if (inputCode == code)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"\nAccess granted! Welcome back, {foundUser.Username}!");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey();
-                    return foundUser;
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("\n❌ Incorrect verification code.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to return...");
-                    Console.ReadKey();
-                    return null;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nAn error occurred: {ex.Message}");
-                Console.ResetColor();
-                Console.WriteLine("Press any key to return...");
+                Console.WriteLine("\n❌ Invalid credentials.");
                 Console.ReadKey();
                 return null;
             }
+
+            // --- Generera 2FA-kod ---
+            string code = new Random().Next(100000, 999999).ToString();
+
+            if (testMode)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"\n[TESTMODE] 2FA code: {code}");
+                Console.ResetColor();
+            }
+            else
+            {
+                notifier.SendSmsAsync(user.PhoneNumber, $"Your 2FA code is {code}").Wait();
+            }
+
+            Console.Write("\nEnter 2FA code: ");
+            string input = Console.ReadLine();
+
+            if (input == code)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"\n✅ Welcome, {user.Username}!");
+                Console.ResetColor();
+                Console.ReadKey();
+                return user;
+            }
+
+            Console.WriteLine("\n❌ Wrong code.");
+            Console.ReadKey();
+            return null;
         }
 
-        // =============================
-        //   LÖSENORDSKRAV / VALIDERING
-        // =============================
-        private static bool IsStrongPassword(string password)
+        // === SPARA ALLA ÄNDRINGAR ===
+        public static void SaveAll() => DataStorage.SaveUsers(registeredUsers);
+
+        // === LÄS LÖSENORD UTAN ATT VISA DET ===
+        private static string ReadPassword()
         {
-            if (string.IsNullOrEmpty(password)) return false;
+            string password = "";
+            while (true)
+            {
+                var key = Console.ReadKey(true);
+                if (key.Key == ConsoleKey.Enter) break;
+                if (key.Key == ConsoleKey.Backspace && password.Length > 0)
+                {
+                    password = password[..^1];
+                    Console.Write("\b \b");
+                }
+                else
+                {
+                    password += key.KeyChar;
+                    Console.Write("*");
+                }
+            }
+            return password;
+        }
 
-            bool hasUpper = password.Any(char.IsUpper); // minst en versal
-            bool hasDigit = password.Any(char.IsDigit); // minst en siffra
-            bool hasSpecial = Regex.IsMatch(password, @"[!@#$%^&*(),.?""{}|<>]"); // minst ett specialtecken
-
-            return password.Length >= 6 && hasUpper && hasDigit && hasSpecial;
+        // === LÖSENORDSVALIDERING ===
+        private static bool IsStrongPassword(string pw)
+        {
+            return pw.Length >= 6 &&
+                   pw.Any(char.IsUpper) &&
+                   pw.Any(char.IsDigit) &&
+                   Regex.IsMatch(pw, @"[!@#$%^&*(),.?""{}|<>]");
         }
     }
 }

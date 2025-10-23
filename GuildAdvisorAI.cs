@@ -1,10 +1,8 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using OpenAI;
-using OpenAI.Chat;
-using Spectre.Console;
+﻿using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -12,115 +10,106 @@ using System.Threading.Tasks;
 
 namespace Portfolio_Projekt_Quest_Tracker
 {
+    /// <summary>
+    /// GuildAdvisorAI – AI-rådgivare som pratar med OpenAI via HTTP.
+    /// Meny och output via Spectre.Console. Anpassad för per-user quests.
+    /// </summary>
     public class GuildAdvisorAI
     {
-        // --- HTTP-klient ---
-        // Vi använder en statisk HttpClient för alla OpenAI-anrop. 
-        // Detta gör att vi inte skapar nya klienter varje gång, vilket är mer effektivt.
+        // --- HTTP-klient återanvänds för alla anrop (prestanda & sockets) ---
         private static readonly HttpClient client = new HttpClient();
 
-        // --- Konstruktor ---
+        // --- Välj OpenAI-modell här (kan bytas vid behov) ---
+        private const string DefaultModel = "gpt-4.1-mini";
+
+        /// <summary>
+        /// Init: lägg till Authorization-header från miljövariabeln OPENAI_API_KEY.
+        /// </summary>
         public GuildAdvisorAI()
         {
-            // Hämta OpenAI API-nyckel från miljövariabler
             string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new InvalidOperationException("Missing OPENAI_API_KEY environment variable.");
 
-            // Kontrollera att API-nyckeln finns
-            if (string.IsNullOrEmpty(apiKey))
-                throw new InvalidOperationException("Missing OpenAI API key in environment variables");
-
-            // Lägg till Authorization-headern i alla requests
-            // Detta behövs för att OpenAI ska acceptera våra anrop
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            // Sätt bara headern en gång
+            if (client.DefaultRequestHeaders.Authorization == null)
+            {
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            }
         }
 
-        // === Huvudmeny med Spectre.Console ===
-        // Användaren kan navigera med piltangenter istället för att skriva siffror
-        public async Task InteractWithUserAsync()
+        /// <summary>
+        /// Huvudmeny för AI:n. Måste få den inloggade hjälten för att läsa hens quests.
+        /// </summary>
+        public async Task InteractWithUserAsync(User loggedInUser)
         {
-            try
+            bool active = true;
+
+            while (active)
             {
-                // Rensa konsolen för en ren start
                 Console.Clear();
+                AnsiConsole.Write(new FigletText("Guild Advisor").Centered().Color(Color.MediumPurple));
+                AnsiConsole.MarkupLine($"[grey]Advisor linked to hero: [bold]{loggedInUser.Username}[/][/]\n");
 
-                // Skriv ut en titel med färg
-                AnsiConsole.MarkupLine("[bold cyan]\n=== GUILD ADVISOR AI ===[/]\n");
-
-                // Skapa en meny med SelectionPrompt från Spectre.Console
-                // Användaren kan navigera med piltangenter och välja ett alternativ
                 var action = AnsiConsole.Prompt(
                     new SelectionPrompt<string>()
-                        .Title("Choose AI action:")
-                        .PageSize(5) // Max antal synliga alternativ
-                        .AddChoices(new[]
-                        {
+                        .Title("[bold yellow]Choose AI action[/]")
+                        .PageSize(6)
+                        .AddChoices(
                             "Generate quest description",
                             "Suggest quest priority",
                             "Summarize all quests",
                             "Return to main menu"
-                        }));
+                        ));
 
-                // Hantera användarens val
                 switch (action)
                 {
                     case "Generate quest description":
-                        // Anropa metod som genererar quest-beskrivning
                         await HandleGenerateDescriptionAsync();
                         break;
 
                     case "Suggest quest priority":
-                        // Anropa metod som föreslår prioritet baserat på beskrivning
                         await HandleSuggestPriorityAsync();
                         break;
 
                     case "Summarize all quests":
-                        // Anropa metod som sammanfattar alla quests
-                        await HandleSummarizeAsync();
+                        await HandleSummarizeAsync(loggedInUser);
                         break;
 
                     case "Return to main menu":
-                        // Tillbaka till huvudmenyn
+                        // liten paus för att ge feedback
                         AnsiConsole.MarkupLine("\nReturning to main menu...");
-                        await Task.Delay(500); // liten paus för bättre UX
+                        await Task.Delay(350);
+                        active = false;
                         break;
                 }
             }
-            catch (Exception ex)
-            {
-                // Fångar eventuella oväntade fel under menyn
-                AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
-                Console.WriteLine("Press any key to continue...");
-                Console.ReadKey();
-            }
         }
 
-        // === Alternativ 1: Generera quest description ===
+        // ============================================================
+        // ===============   MENYALTERNATIV / HANDLERS   ==============
+        // ============================================================
+
+        /// <summary>
+        /// Alternativ 1: Generera en episk men kort quest-beskrivning.
+        /// </summary>
         private async Task HandleGenerateDescriptionAsync()
         {
-            // Rensa konsolen
             Console.Clear();
-
-            // Skriv ut rubrik i gult
             AnsiConsole.MarkupLine("[yellow]=== GENERATE QUEST DESCRIPTION ===[/]");
 
-            // Fråga användaren om quest-titel
             string title = AnsiConsole.Ask<string>("Enter quest title:");
-
-            // Om användaren inte skriver något, avbryt
             if (string.IsNullOrWhiteSpace(title))
             {
                 AnsiConsole.MarkupLine("[red]Title cannot be empty.[/]");
+                Console.WriteLine("Press any key to return...");
                 Console.ReadKey();
                 return;
             }
 
-            // Informera användaren att AI:n analyserar texten
-            AnsiConsole.MarkupLine("\nGenerating description, please wait...\n");
-
-            // Anropa AI för att generera beskrivning
+            AnsiConsole.MarkupLine("\n[grey]Generating description...[/]\n");
             string description = await GenerateQuestDescriptionAsync(title);
 
-            // Skriv ut resultatet i grönt
             AnsiConsole.MarkupLine("[green]=== Quest Description ===[/]");
             Console.WriteLine(description);
 
@@ -128,158 +117,184 @@ namespace Portfolio_Projekt_Quest_Tracker
             Console.ReadKey();
         }
 
-        // === Alternativ 2: Föreslå prioritet ===
+        /// <summary>
+        /// Alternativ 2: Låt AI föreslå prioritet (High/Medium/Low) utifrån beskrivning.
+        /// </summary>
         private async Task HandleSuggestPriorityAsync()
         {
             Console.Clear();
             AnsiConsole.MarkupLine("[yellow]=== SUGGEST QUEST PRIORITY ===[/]");
-
-            // Instruktion till användaren för att klistra in text
             AnsiConsole.MarkupLine("Paste the quest description (type 'END' when finished):");
 
-            // StringBuilder används för att samla flera rader från användaren
-            StringBuilder questBuilder = new StringBuilder();
-            string line;
-            while ((line = Console.ReadLine()) != null && line.ToUpper() != "END")
-                questBuilder.AppendLine(line);
+            var sb = new StringBuilder();
+            while (true)
+            {
+                var line = Console.ReadLine();
+                if (line != null && line.Trim().Equals("END", StringComparison.OrdinalIgnoreCase)) break;
+                sb.AppendLine(line);
+            }
 
-            // Konvertera StringBuilder till string och trimma whitespace
-            string questDescription = questBuilder.ToString().Trim();
-
-            // Om användaren inte skriver något, sätt default-prioritet
+            string questDescription = sb.ToString().Trim();
             if (string.IsNullOrWhiteSpace(questDescription))
             {
                 AnsiConsole.MarkupLine("[red]No description provided. Defaulting to Low priority.[/]");
+                Console.WriteLine("Press any key to return...");
                 Console.ReadKey();
                 return;
             }
 
-            // Informera användaren att AI:n analyserar questen
-            AnsiConsole.MarkupLine("\nAnalyzing quest details...");
-
-            // Anropa AI för att få prioritet
+            AnsiConsole.MarkupLine("\n[grey]Analyzing quest...[/]\n");
             string priority = await SuggestPriorityAsync(questDescription);
 
-            // Skriv ut resultatet i grönt
-            AnsiConsole.MarkupLine($"[green]Suggested priority: {priority}[/]");
-            Console.WriteLine("Press any key to return...");
+            AnsiConsole.MarkupLine($"[green]Suggested priority: [bold]{priority}[/][/]");
+            Console.WriteLine("\nPress any key to return...");
             Console.ReadKey();
         }
 
-        // === Alternativ 3: Sammanfatta alla quests ===
-        private async Task HandleSummarizeAsync()
+        /// <summary>
+        /// Alternativ 3: Sammanfatta ALLA quests för inloggad hjälte (inte global lista).
+        /// </summary>
+        private async Task HandleSummarizeAsync(User loggedInUser)
         {
             Console.Clear();
-            AnsiConsole.MarkupLine("[yellow]=== SUMMARIZE ALL QUESTS ===[/]");
+            AnsiConsole.MarkupLine("[yellow]=== SUMMARIZE ALL QUESTS ===[/]\n");
 
-            // Anropa AI för att skapa sammanfattning
-            string summary = await SummarizeQuestsAsync(QuestManager.quests);
+            var quests = loggedInUser.Quests;
+            if (quests.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[grey]You have no quests at the moment.[/]");
+                Console.WriteLine("\nPress any key to return...");
+                Console.ReadKey();
+                return;
+            }
 
-            // Skriv ut resultatet i grönt
-            AnsiConsole.MarkupLine("[green]All Quests Summary:[/]");
+            string summary = await SummarizeQuestsAsync(quests);
+
+            AnsiConsole.MarkupLine("[green]=== All Quests Summary ===[/]");
             Console.WriteLine(summary);
 
             Console.WriteLine("\nPress any key to return...");
             Console.ReadKey();
         }
 
-        // === AI: Generera quest-beskrivning ---
+        // ============================================================
+        // ======================   OPENAI-LOGIK   =====================
+        // ============================================================
+
+        /// <summary>
+        /// Skapar en kort och “terminalvänlig” quest-beskrivning för en given titel.
+        /// </summary>
         public async Task<string> GenerateQuestDescriptionAsync(string title)
         {
-            // Skapa JSON-payload som skickas till OpenAI
             var requestBody = new
             {
-                model = "gpt-4.1-mini",
+                model = DefaultModel,
                 messages = new[]
                 {
-                    new { role = "system", content = "You are a Guild Advisor. Generate epic quest descriptions." },
-                    new { role = "user", content = $"Generate a detailed, not that long, that looks good in Visual Studio terminal, heroic quest description for the title: {title}" }
+                    new { role = "system", content = "You are a Guild Advisor. Generate epic yet concise quest descriptions suitable for a terminal UI. Avoid markdown formatting." },
+                    new { role = "user", content = $"Write a short, vivid quest description for the title: \"{title}\". Keep it 5-7 lines max." }
                 }
             };
 
-            // Skicka request och få svar
             string reply = await SendRequestAsync(requestBody);
-
-            // Rensa bort markdown-symboler
-            return reply.Trim().Replace("**", "").Replace("*", "");
+            return Sanitize(reply);
         }
 
-        // === AI: Föreslå prioritet ---
+        /// <summary>
+        /// Låt AI föreslå High/Medium/Low utifrån en given text.
+        /// </summary>
         public async Task<string> SuggestPriorityAsync(string questDescription)
         {
-            // Ta bort radbrytningar så texten blir en lång rad
-            string cleanedDescription = questDescription.Replace("\r", " ").Replace("\n", " ");
+            string cleaned = questDescription.Replace("\r", " ").Replace("\n", " ");
 
             var requestBody = new
             {
-                model = "gpt-4.1-mini",
+                model = DefaultModel,
                 messages = new[]
                 {
-                    new { role = "system", content = "You are a Guild Advisor. Suggest a quest priority (High, Medium, Low)." },
-                    new { role = "user", content = $"Based on this quest description, suggest a priority: {cleanedDescription}" }
+                    new { role = "system", content = "You are a Guild Advisor. Reply ONLY with one word: High, Medium, or Low." },
+                    new { role = "user", content = $"Given this quest description, what priority should it have (High/Medium/Low)? {cleaned}" }
                 }
             };
 
-            string reply = await SendRequestAsync(requestBody);
+            string reply = Sanitize(await SendRequestAsync(requestBody));
 
-            // Extrahera bara High/Medium/Low
-            if (reply.Contains("High", StringComparison.OrdinalIgnoreCase)) return "High";
-            if (reply.Contains("Medium", StringComparison.OrdinalIgnoreCase)) return "Medium";
+            // Hårdsäkerställ bara H/M/L
+            if (reply.IndexOf("High", StringComparison.OrdinalIgnoreCase) >= 0) return "High";
+            if (reply.IndexOf("Medium", StringComparison.OrdinalIgnoreCase) >= 0) return "Medium";
             return "Low";
         }
 
-        // === AI: Sammanfatta alla quests ---
+        /// <summary>
+        /// Sammanfatta en lista med quests i hjälte-ton.
+        /// </summary>
         public async Task<string> SummarizeQuestsAsync(List<Quest> quests)
         {
-            if (quests.Count == 0) return "You have no quests at the moment.";
-
-            // Skapa en sträng med alla quests och status
+            // Bygg upp en enkel, tydlig lista som prompt
             string allQuests = string.Join("\n", quests.Select(q =>
-                $"{q.Title} - {(q.IsCompleted ? "Completed" : "Pending")}: {q.Description}"));
+                $"- {q.Title} | {(q.IsCompleted ? "Completed" : "Pending")} | Due {q.DueDate:yyyy-MM-dd} | Priority {q.Priority}: {Truncate(q.Description, 160)}"));
 
             var requestBody = new
             {
-                model = "gpt-4.1-mini",
+                model = DefaultModel,
                 messages = new[]
                 {
-                    new { role = "system", content = "You are a Guild Advisor. Summarize quests in a heroic, epic tone." },
-                    new { role = "user", content = $"Summarize these quests for the hero:\n{allQuests}" }
+                    new { role = "system", content = "You are a Guild Advisor. Summarize the hero's quests with a concise heroic tone suitable for a terminal. No markdown." },
+                    new { role = "user", content = $"Summarize these quests and recommend next 1-3 actions:\n{allQuests}" }
                 }
             };
 
             string reply = await SendRequestAsync(requestBody);
-            return reply.Trim().Replace("**", "").Replace("*", "");
+            return Sanitize(reply);
         }
 
-        // === Skicka request till OpenAI API ---
+        /// <summary>
+        /// Skickar POST till OpenAI Chat Completions och extraherar svaret.
+        /// </summary>
         private async Task<string> SendRequestAsync(object requestBody)
         {
-            // Serialisera objektet till JSON
             string json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             try
             {
-                // Skicka POST-request till OpenAI
-                var response = await client.PostAsync("https://api.openai.com/v1/chat/completions", content);
-                string responseString = await response.Content.ReadAsStringAsync();
+                using var response = await client.PostAsync("https://api.openai.com/v1/chat/completions", content);
+                string resp = await response.Content.ReadAsStringAsync();
 
-                // Parsar JSON-responsen
-                using JsonDocument doc = JsonDocument.Parse(responseString);
+                // Enkel felhantering vid 4xx/5xx för att ytliggöra problem i konsolen
+                if (!response.IsSuccessStatusCode)
+                    return $"[OpenAI error {((int)response.StatusCode)}] {resp}";
 
-                // Extrahera innehållet från AI-svaret
-                string reply = doc.RootElement.GetProperty("choices")[0]
-                                   .GetProperty("message")
-                                   .GetProperty("content")
-                                   .GetString()!;
+                using var doc = JsonDocument.Parse(resp);
+                string reply = doc.RootElement
+                    .GetProperty("choices")[0]
+                    .GetProperty("message")
+                    .GetProperty("content")
+                    .GetString() ?? "";
 
                 return reply;
             }
             catch (Exception ex)
             {
-                // Om något går fel, returnera meddelande
                 return $"Guild Advisor is currently unavailable: {ex.Message}";
             }
+        }
+
+        // ============================================================
+        // ======================   HJÄLP-METODER   ====================
+        // ============================================================
+
+        private static string Sanitize(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            // Ta bort markdown-stjärnor så texten blir ren i terminalen
+            return s.Replace("**", "").Replace("*", "").Trim();
+        }
+
+        private static string Truncate(string s, int max) // Trunkera text för sammanfattning
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= max ? s : s.Substring(0, max - 1) + "…";
         }
     }
 }

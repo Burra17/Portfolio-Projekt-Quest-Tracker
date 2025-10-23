@@ -8,14 +8,11 @@ namespace Portfolio_Projekt_Quest_Tracker
     {
         static async Task Main(string[] args)
         {
-            // Initiera services
             var notifier = new NotificationService();
             var ai = new GuildAdvisorAI();
-
             bool running = true;
             User loggedInUser = null;
 
-            // --- Huvudloop ---
             while (running)
             {
                 if (loggedInUser == null)
@@ -30,6 +27,11 @@ namespace Portfolio_Projekt_Quest_Tracker
 
                         case "Login Hero":
                             loggedInUser = Authenticator.LoginHero();
+                            if (loggedInUser != null)
+                            {
+                                // ✅ Kolla deadlines direkt vid inloggning
+                                await QuestManager.CheckDeadlinesOnLoginAsync(loggedInUser, notifier);
+                            }
                             break;
 
                         case "Exit Program":
@@ -44,23 +46,23 @@ namespace Portfolio_Projekt_Quest_Tracker
                     switch (heroChoice)
                     {
                         case "Add New Quest":
-                            QuestManager.AddQuest();
+                            QuestManager.AddQuest(loggedInUser);
                             break;
 
                         case "View All Quests":
-                            QuestManager.ShowAllQuests();
+                            QuestManager.ShowAllQuests(loggedInUser);
                             break;
 
                         case "Update/Complete Quest":
-                            QuestManager.ManageQuest();
+                            QuestManager.ManageQuest(loggedInUser);
                             break;
 
                         case "Guild Advisor (AI)":
-                            await ai.InteractWithUserAsync();
+                            await ai.InteractWithUserAsync(loggedInUser);
                             break;
 
                         case "Guild Report":
-                            await QuestManager.ShowGuildReportAsync(notifier, loggedInUser.PhoneNumber);
+                            await QuestManager.ShowGuildReportAsync(notifier, loggedInUser);
                             break;
 
                         case "Logout":
@@ -69,6 +71,10 @@ namespace Portfolio_Projekt_Quest_Tracker
                     }
                 }
             }
+
+            // Spara innan avslut
+            Authenticator.SaveAll();
+            AnsiConsole.MarkupLine("[grey]💾 Data saved. Goodbye hero![/]");
         }
     }
 }
